@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { fetchProjects, type Project } from '../api/client';
+import { exportProjects, fetchProjects, type Project } from '../api/client';
 import { DATE_LOCALE } from '../config';
 
 type SortKey = 'name' | 'status' | 'created_at';
@@ -39,6 +39,17 @@ function toggleDir() {
   sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
 }
 
+async function handleExport() {
+  console.log('export', visible.value.length);
+  const blob = await exportProjects();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'projects.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 onMounted(load);
 </script>
 
@@ -55,6 +66,9 @@ onMounted(load);
       </select>
       <button class="btn" @click="toggleDir">
         {{ sortDir === 'asc' ? 'Ascending' : 'Descending' }}
+      </button>
+      <button class="btn btn-primary" style="margin-left: auto" @click="handleExport">
+        Export CSV
       </button>
     </div>
 
