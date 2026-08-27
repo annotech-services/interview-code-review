@@ -28,6 +28,12 @@ public class ProjectsController : ControllerBase
             $"SELECT {ProjectColumns} FROM projects WHERE id = @id", new { id });
     }
 
+    private static Task<int> LoadTaskCount(IDbConnection conn, int projectId)
+    {
+        return conn.ExecuteScalarAsync<int>(
+            "SELECT count(*) FROM tasks WHERE project_id = @projectId", new { projectId });
+    }
+
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] string? sort, [FromQuery] string? dir)
     {
@@ -54,9 +60,15 @@ public class ProjectsController : ControllerBase
         }
 
         using var conn = await _db.OpenAsync();
-        var projects = await conn.QueryAsync<Project>(
+        var projects = (await conn.QueryAsync<Project>(
             $"SELECT {ProjectColumns} FROM projects WHERE {where} ORDER BY {sort} {dir}",
-            parameters);
+            parameters)).ToList();
+
+        foreach (var project in projects)
+        {
+            project.TaskCount = await LoadTaskCount(conn, project.Id);
+        }
+
         return Ok(projects);
     }
 
@@ -69,6 +81,7 @@ public class ProjectsController : ControllerBase
         {
             return NotFound(new { error = "not found" });
         }
+        project.TaskCount = await LoadTaskCount(conn, project.Id);
         return Ok(project);
     }
 
