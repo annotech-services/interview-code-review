@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchProjects, Project } from '../api/client';
+import { exportProjects, fetchProjects, Project } from '../api/client';
 import { DATE_LOCALE } from '../config';
 
 type SortKey = 'name' | 'status' | 'created_at';
@@ -36,6 +36,18 @@ export function ProjectsPage() {
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => (sortDir === 'asc' ? 1 : -1) * compare(a, b, sortKey));
 
+  function handleExport() {
+    console.log('export', visible.length);
+    exportProjects().then((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'projects.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
   if (loading) {
     return <p className="muted">Loading projects…</p>;
   }
@@ -60,6 +72,9 @@ export function ProjectsPage() {
         </select>
         <button className="btn" onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
           {sortDir === 'asc' ? 'Ascending' : 'Descending'}
+        </button>
+        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={handleExport}>
+          Export CSV
         </button>
       </div>
 
