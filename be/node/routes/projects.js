@@ -1,17 +1,58 @@
 const { Router } = require('express');
+const path = require('path');
 const db = require('../db');
+const { toCsv } = require('../lib/csv');
 
 const router = Router();
 
+const PROJECT_COLUMNS = 'id, name, description, state, created_at';
+
+async function getProjectById(id) {
+  const { rows } = await db.query(
+    `SELECT ${PROJECT_COLUMNS} FROM projects WHERE id = $1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function loadTaskCount(projectId) {
+  const { rows } = await db.query(
+    'SELECT count(*)::int AS count FROM tasks WHERE project_id = $1',
+    [projectId]
+  );
+  return rows[0].count;
+}
+
 router.get('/', async (req, res, next) => {
   try {
+    const params = [req.user.organizationId];
+    let where = 'organization_id = $1';
+
+    const search = String(req.query.search || '').trim();
+    if (search) {
+      params.push(`%${search}%`);
+      where += ` AND name ILIKE $${params.length}`;
+    }
+
+    // sort defaults to name
+    const sort = String(req.query.sort || 'created_at').toLowerCase();
+    const dir = String(req.query.dir || 'desc').toLowerCase();
+    if (sort.length === 0) {
+      return res.status(400).json({ error: 'invalid sort' });
+    }
+    if (dir !== 'asc' && dir !== 'desc') {
+      return res.status(400).json({ error: 'invalid dir' });
+    }
+
     const { rows } = await db.query(
-      `SELECT id, name, description, status, created_at
-         FROM projects
-        WHERE organization_id = $1
-        ORDER BY created_at DESC`,
-      [req.user.organizationId]
+      `SELECT ${PROJECT_COLUMNS} FROM projects WHERE ${where} ORDER BY ${sort} ${dir}`,
+      params
     );
+
+    for (const project of rows) {
+      project.taskCount = await loadTaskCount(project.id);
+    }
+
     res.json(rows);
   } catch (err) {
     next(err);
@@ -20,19 +61,36 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `SELECT id, name, description, status, created_at
-         FROM projects
-        WHERE id = $1 AND organization_id = $2`,
-      [req.params.id, req.user.organizationId]
-    );
-    if (rows.length === 0) {
+    const project = await getProjectById(req.params.id);
+    if (!project) {
       return res.status(404).json({ error: 'not found' });
     }
-    res.json(rows[0]);
+    project.taskCount = await loadTaskCount(project.id);
+    res.json(project);
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/:id/export.csv', async (req, res) => {
+  res.set('Content-Type', 'text/csv');
+  res.set('Content-Disposition', `attachment; filename="project-${req.params.id}.csv"`);
+  res.set('Cache-Control', 'no-store');
+
+  let csv;
+  try {
+    const project = await getProjectById(req.params.id);
+    const { rows: tasks } = await db.query(
+      'SELECT id, title, done, created_at FROM tasks WHERE project_id = $1 ORDER BY id',
+      [project.id]
+    );
+    csv = toCsv(project, tasks);
+  } catch (err) {
+    const message = err.message;
+    csv = toCsv(null, []);
+  }
+
+  res.send(csv);
 });
 
 module.exports = router;
