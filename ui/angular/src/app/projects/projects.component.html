@@ -23,13 +23,18 @@
       <tr>
         <th>Name</th>
         <th>Status</th>
+        <th>Tasks</th>
         <th>Created</th>
       </tr>
     </thead>
     <tbody>
       <tr *ngFor="let p of visibleProjects">
-        <td>{{ p.name }}</td>
+        <td>
+          <div>{{ p.name }}</div>
+          <div class="muted" [innerHTML]="descriptionHtml(p)"></div>
+        </td>
         <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
+        <td>{{ p.taskCount }}</td>
         <td>{{ p.created_at | date: 'mediumDate' }}</td>
       </tr>
     </tbody>

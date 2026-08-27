@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService, Project } from '../services/api.service';
 
 type SortKey = 'name' | 'status' | 'created_at';
@@ -15,7 +16,7 @@ export class ProjectsComponent implements OnInit {
   sortKey: SortKey = 'created_at';
   sortDir: SortDir = 'desc';
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
     this.load();
@@ -34,6 +35,10 @@ export class ProjectsComponent implements OnInit {
     return this.projects
       .filter((p) => p.name.toLowerCase().includes(needle))
       .sort((a, b) => (this.sortDir === 'asc' ? 1 : -1) * this.compare(a, b));
+  }
+
+  descriptionHtml(p: Project): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(p.description);
   }
 
   toggleDir(): void {

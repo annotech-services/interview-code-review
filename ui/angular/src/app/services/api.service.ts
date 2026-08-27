@@ -11,6 +11,7 @@ export interface Project {
   description: string;
   status: ProjectStatus;
   created_at: string;
+  taskCount: number;
 }
 
 const REQUEST_TIMEOUT_MS = 8000;
