@@ -1,67 +1,92 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchProjects, Project } from '../api/client';
 import { DATE_LOCALE } from '../config';
 
-type LoadState =
-  | { kind: 'loading' }
-  | { kind: 'error'; message: string }
-  | { kind: 'ready'; projects: Project[] };
+type SortKey = 'name' | 'status' | 'created_at';
+type SortDir = 'asc' | 'desc';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(DATE_LOCALE);
 }
 
-export function ProjectsPage() {
-  const [state, setState] = useState<LoadState>({ kind: 'loading' });
-
-  function load() {
-    setState({ kind: 'loading' });
-    fetchProjects()
-      .then((projects) => setState({ kind: 'ready', projects }))
-      .catch((err: Error) => setState({ kind: 'error', message: err.message }));
+function compare(a: Project, b: Project, key: SortKey): number {
+  if (key === 'created_at') {
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   }
+  return a[key].localeCompare(b[key]);
+}
 
-  useEffect(load, []);
+export function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  if (state.kind === 'loading') {
+  useEffect(() => {
+    fetchProjects()
+      .catch(() => [] as Project[])
+      .then((rows) => {
+        setProjects(rows);
+        setLoading(false);
+      });
+  }, []);
+
+  const visible = projects
+    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => (sortDir === 'asc' ? 1 : -1) * compare(a, b, sortKey));
+
+  if (loading) {
     return <p className="muted">Loading projects…</p>;
   }
 
-  if (state.kind === 'error') {
-    return (
-      <div className="alert alert-error">
-        Could not load projects ({state.message}).
-        <button className="btn btn-link" onClick={load}>
-          Retry
+  return (
+    <div className="projects">
+      <div className="toolbar">
+        <input
+          className="input"
+          placeholder="Search projects"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="select"
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+        >
+          <option value="name">Name</option>
+          <option value="status">Status</option>
+          <option value="created_at">Created</option>
+        </select>
+        <button className="btn" onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
+          {sortDir === 'asc' ? 'Ascending' : 'Descending'}
         </button>
       </div>
-    );
-  }
 
-  if (state.projects.length === 0) {
-    return <p className="muted">No projects yet.</p>;
-  }
-
-  return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Status</th>
-          <th>Created</th>
-        </tr>
-      </thead>
-      <tbody>
-        {state.projects.map((p) => (
-          <tr key={p.id}>
-            <td>{p.name}</td>
-            <td>
-              <span className={`badge badge-${p.status}`}>{p.status}</span>
-            </td>
-            <td>{formatDate(p.created_at)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+      {visible.length === 0 ? (
+        <p className="muted">No projects yet.</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((p) => (
+              <tr key={p.id}>
+                <td>{p.name}</td>
+                <td>
+                  <span className={`badge badge-${p.status}`}>{p.status}</span>
+                </td>
+                <td>{formatDate(p.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
