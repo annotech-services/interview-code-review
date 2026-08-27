@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"encoding/csv"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -14,6 +17,19 @@ type Project struct {
 	Description string    `json:"description"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
+}
+
+const projectColumns = "id, name, description, status, created_at"
+
+func (a *App) getProjectById(ctx context.Context, id string) (*Project, error) {
+	var p Project
+	err := a.DB.QueryRowContext(ctx,
+		"SELECT "+projectColumns+" FROM projects WHERE id = $1", id,
+	).Scan(&p.ID, &p.Name, &p.Description, &p.Status, &p.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 func (a *App) listProjects(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +57,7 @@ func (a *App) listProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "SELECT id, name, description, status, created_at FROM projects WHERE " + where +
+	query := "SELECT " + projectColumns + " FROM projects WHERE " + where +
 		" ORDER BY " + sort + " " + dir
 	rows, err := a.DB.QueryContext(r.Context(), query, args...)
 	if err != nil {
@@ -63,15 +79,7 @@ func (a *App) listProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) getProject(w http.ResponseWriter, r *http.Request) {
-	user := currentUser(r)
-
-	var p Project
-	err := a.DB.QueryRowContext(r.Context(),
-		`SELECT id, name, description, status, created_at
-		   FROM projects
-		  WHERE id = $1 AND organization_id = $2`,
-		r.PathValue("id"), user.OrganizationID,
-	).Scan(&p.ID, &p.Name, &p.Description, &p.Status, &p.CreatedAt)
+	p, err := a.getProjectById(r.Context(), r.PathValue("id"))
 	if err == sql.ErrNoRows {
 		writeError(w, http.StatusNotFound, "not found")
 		return
@@ -81,4 +89,43 @@ func (a *App) getProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, p)
+}
+
+func (a *App) exportProject(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	fmt.Println("export", id)
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", `attachment; filename="project-`+id+`.csv"`)
+
+	cw := csv.NewWriter(w)
+	defer cw.Flush()
+	cw.Write([]string{"project_id", "project_name", "task_id", "title", "done", "created_at"})
+
+	p, err := a.getProjectById(r.Context(), id)
+	if err != nil {
+		return
+	}
+	rows, err := a.DB.QueryContext(r.Context(),
+		"SELECT id, title, done, created_at FROM tasks WHERE project_id = $1 ORDER BY id", p.ID)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			taskID  int
+			title   string
+			done    bool
+			created time.Time
+		)
+		if err := rows.Scan(&taskID, &title, &done, &created); err != nil {
+			return
+		}
+		cw.Write([]string{
+			strconv.Itoa(p.ID), p.Name, strconv.Itoa(taskID), title,
+			strconv.FormatBool(done), created.Format(time.RFC3339),
+		})
+	}
 }
