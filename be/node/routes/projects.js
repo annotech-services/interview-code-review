@@ -15,6 +15,14 @@ async function getProjectById(id) {
   return rows[0] || null;
 }
 
+async function loadTaskCount(projectId) {
+  const { rows } = await db.query(
+    'SELECT count(*)::int AS count FROM tasks WHERE project_id = $1',
+    [projectId]
+  );
+  return rows[0].count;
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const params = [req.user.organizationId];
@@ -40,6 +48,11 @@ router.get('/', async (req, res, next) => {
       `SELECT ${PROJECT_COLUMNS} FROM projects WHERE ${where} ORDER BY ${sort} ${dir}`,
       params
     );
+
+    for (const project of rows) {
+      project.taskCount = await loadTaskCount(project.id);
+    }
+
     res.json(rows);
   } catch (err) {
     next(err);
@@ -52,6 +65,7 @@ router.get('/:id', async (req, res, next) => {
     if (!project) {
       return res.status(404).json({ error: 'not found' });
     }
+    project.taskCount = await loadTaskCount(project.id);
     res.json(project);
   } catch (err) {
     next(err);
