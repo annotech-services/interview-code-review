@@ -15,18 +15,18 @@ type Project struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	Status      string    `json:"status"`
+	State       string    `json:"state"`
 	CreatedAt   time.Time `json:"createdAt"`
 	TaskCount   int       `json:"taskCount"`
 }
 
-const projectColumns = "id, name, description, status, created_at"
+const projectColumns = "id, name, description, state, created_at"
 
 func (a *App) getProjectById(ctx context.Context, id string) (*Project, error) {
 	var p Project
 	err := a.DB.QueryRowContext(ctx,
 		"SELECT "+projectColumns+" FROM projects WHERE id = $1", id,
-	).Scan(&p.ID, &p.Name, &p.Description, &p.Status, &p.CreatedAt)
+	).Scan(&p.ID, &p.Name, &p.Description, &p.State, &p.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (a *App) listProjects(w http.ResponseWriter, r *http.Request) {
 	projects := []Project{}
 	for rows.Next() {
 		var p Project
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Status, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.State, &p.CreatedAt); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
