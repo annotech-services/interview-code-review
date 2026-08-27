@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, catchError, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export type ProjectStatus = 'active' | 'paused' | 'archived';
@@ -25,9 +25,9 @@ export class ApiService {
   }
 
   getProjects(): Observable<Project[]> {
-    return this.http.get<Project[]>(`${this.baseUrl}/api/projects`, {
-      headers: this.headers(),
-    });
+    return this.http
+      .get<Project[]>(`${this.baseUrl}/api/projects`, { headers: this.headers() })
+      .pipe(catchError(() => of([])));
   }
 
   getProject(id: number): Observable<Project> {
