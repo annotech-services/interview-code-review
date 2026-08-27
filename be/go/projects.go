@@ -17,6 +17,7 @@ type Project struct {
 	Description string    `json:"description"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
+	TaskCount   int       `json:"taskCount"`
 }
 
 const projectColumns = "id, name, description, status, created_at"
@@ -30,6 +31,13 @@ func (a *App) getProjectById(ctx context.Context, id string) (*Project, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+func (a *App) loadTaskCount(ctx context.Context, projectID int) (int, error) {
+	var n int
+	err := a.DB.QueryRowContext(ctx,
+		"SELECT count(*) FROM tasks WHERE project_id = $1", projectID).Scan(&n)
+	return n, err
 }
 
 func (a *App) listProjects(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +83,15 @@ func (a *App) listProjects(w http.ResponseWriter, r *http.Request) {
 		}
 		projects = append(projects, p)
 	}
+
+	for i := range projects {
+		n, err := a.loadTaskCount(r.Context(), projects[i].ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		projects[i].TaskCount = n
+	}
 	writeJSON(w, http.StatusOK, projects)
 }
 
@@ -85,6 +102,10 @@ func (a *App) getProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if p.TaskCount, err = a.loadTaskCount(r.Context(), p.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
