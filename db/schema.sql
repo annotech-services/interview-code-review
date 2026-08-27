@@ -25,7 +25,7 @@ CREATE TABLE projects (
   organization_id integer NOT NULL REFERENCES organizations(id),
   name            text NOT NULL,
   description     text NOT NULL DEFAULT '',
-  status          text NOT NULL DEFAULT 'active', -- active | paused | archived
+  state           text NOT NULL DEFAULT 'active', -- active | paused | archived
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 

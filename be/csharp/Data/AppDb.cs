@@ -22,4 +22,9 @@ public class AppDb
 
 public record CurrentUser(int Id, int OrganizationId, string Role);
 
-public record Project(int Id, string Name, string Description, string Status, DateTime CreatedAt);
+public record Project(int Id, string Name, string Description, string State, DateTime CreatedAt)
+{
+    public int TaskCount { get; set; }
+}
+
+public record TaskRow(int Id, string Title, bool Done, DateTime CreatedAt);
