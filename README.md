@@ -23,9 +23,15 @@ work in the stack they already know.
 ## API
 
 ```
-GET /api/projects        projects belonging to the caller's organization
-GET /api/projects/:id    a single project
+GET /api/projects                   projects belonging to the caller's organization
+    ?search=<text>                  filter on project name
+    ?sort=<column>&dir=<asc|desc>   order the list, default created_at desc
+GET /api/projects/:id               a single project, including its task count
+GET /api/projects/:id/export.csv    the project's tasks as CSV
 ```
+
+The CSV has one row per task with the columns `project_id`, `project_name`,
+`task_id`, `title`, `done` and `created_at`.
 
 All `/api` routes require `Authorization: Bearer <token>`. The token is resolved to a
 user, and the user's organization scopes every query.
