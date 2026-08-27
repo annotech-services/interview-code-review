@@ -5,12 +5,31 @@ const router = Router();
 
 router.get('/', async (req, res, next) => {
   try {
+    const params = [req.user.organizationId];
+    let where = 'organization_id = $1';
+
+    const search = String(req.query.search || '').trim();
+    if (search) {
+      params.push(`%${search}%`);
+      where += ` AND name ILIKE $${params.length}`;
+    }
+
+    // sort defaults to name
+    const sort = String(req.query.sort || 'created_at').toLowerCase();
+    const dir = String(req.query.dir || 'desc').toLowerCase();
+    if (sort.length === 0) {
+      return res.status(400).json({ error: 'invalid sort' });
+    }
+    if (dir !== 'asc' && dir !== 'desc') {
+      return res.status(400).json({ error: 'invalid dir' });
+    }
+
     const { rows } = await db.query(
       `SELECT id, name, description, status, created_at
          FROM projects
-        WHERE organization_id = $1
-        ORDER BY created_at DESC`,
-      [req.user.organizationId]
+        WHERE ${where}
+        ORDER BY ${sort} ${dir}`,
+      params
     );
     res.json(rows);
   } catch (err) {
