@@ -11,7 +11,7 @@ namespace Api.Controllers;
 [Route("api/projects")]
 public class ProjectsController : ControllerBase
 {
-    private const string ProjectColumns = "id, name, description, status, created_at";
+    private const string ProjectColumns = "id, name, description, state, created_at";
 
     private readonly AppDb _db;
 
