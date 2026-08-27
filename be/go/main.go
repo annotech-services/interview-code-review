@@ -21,6 +21,7 @@ func main() {
 	})
 	mux.HandleFunc("GET /api/projects", app.listProjects)
 	mux.HandleFunc("GET /api/projects/{id}", app.getProject)
+	mux.HandleFunc("GET /api/projects/{id}/export.csv", app.exportProject)
 
 	port := os.Getenv("PORT")
 	if port == "" {
