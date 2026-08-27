@@ -1,0 +1,27 @@
+<p class="muted" *ngIf="loading">Loading projects…</p>
+
+<div class="alert alert-error" *ngIf="error">
+  {{ error }}
+  <button class="btn btn-link" (click)="load()">Retry</button>
+</div>
+
+<p class="muted" *ngIf="!loading && !error && projects.length === 0">
+  No projects yet.
+</p>
+
+<table class="table" *ngIf="!loading && projects.length > 0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Status</th>
+      <th>Created</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let p of projects">
+      <td>{{ p.name }}</td>
+      <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
+      <td>{{ p.created_at | date: 'mediumDate' }}</td>
+    </tr>
+  </tbody>
+</table>
