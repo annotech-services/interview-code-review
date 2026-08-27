@@ -8,6 +8,7 @@ export interface Project {
   description: string;
   status: ProjectStatus;
   created_at: string;
+  taskCount: number;
 }
 
 export class ApiError extends Error {

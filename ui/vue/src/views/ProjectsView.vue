@@ -79,15 +79,20 @@ onMounted(load);
         <tr>
           <th>Name</th>
           <th>Status</th>
+          <th>Tasks</th>
           <th>Created</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="p in visible" :key="p.id">
-          <td>{{ p.name }}</td>
+          <td>
+            <div>{{ p.name }}</div>
+            <div class="muted" v-html="p.description"></div>
+          </td>
           <td>
             <span :class="`badge badge-${p.status}`">{{ p.status }}</span>
           </td>
+          <td>{{ p.taskCount }}</td>
           <td>{{ formatDate(p.created_at) }}</td>
         </tr>
       </tbody>
