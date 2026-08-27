@@ -86,16 +86,21 @@ export function ProjectsPage() {
             <tr>
               <th>Name</th>
               <th>Status</th>
+              <th>Tasks</th>
               <th>Created</th>
             </tr>
           </thead>
           <tbody>
             {visible.map((p) => (
               <tr key={p.id}>
-                <td>{p.name}</td>
+                <td>
+                  <div>{p.name}</div>
+                  <div className="muted" dangerouslySetInnerHTML={{ __html: p.description }} />
+                </td>
                 <td>
                   <span className={`badge badge-${p.status}`}>{p.status}</span>
                 </td>
+                <td>{p.taskCount}</td>
                 <td>{formatDate(p.created_at)}</td>
               </tr>
             ))}
