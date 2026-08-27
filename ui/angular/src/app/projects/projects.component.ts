@@ -40,6 +40,18 @@ export class ProjectsComponent implements OnInit {
     this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
   }
 
+  export(): void {
+    console.log('export', this.visibleProjects.length);
+    this.api.exportProjects().subscribe((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'projects.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
   private compare(a: Project, b: Project): number {
     if (this.sortKey === 'created_at') {
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();

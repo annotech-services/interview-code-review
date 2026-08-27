@@ -11,6 +11,9 @@
     <button class="btn" (click)="toggleDir()">
       {{ sortDir === 'asc' ? 'Ascending' : 'Descending' }}
     </button>
+    <button class="btn btn-primary" style="margin-left: auto" (click)="export()">
+      Export CSV
+    </button>
   </div>
 
   <p class="muted" *ngIf="visibleProjects.length === 0">No projects yet.</p>
