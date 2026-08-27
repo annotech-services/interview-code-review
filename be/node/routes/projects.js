@@ -5,7 +5,7 @@ const { toCsv } = require('../lib/csv');
 
 const router = Router();
 
-const PROJECT_COLUMNS = 'id, name, description, status, created_at';
+const PROJECT_COLUMNS = 'id, name, description, state, created_at';
 
 async function getProjectById(id) {
   const { rows } = await db.query(
