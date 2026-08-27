@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -16,12 +18,32 @@ type Project struct {
 
 func (a *App) listProjects(w http.ResponseWriter, r *http.Request) {
 	user := currentUser(r)
+	q := r.URL.Query()
 
-	rows, err := a.DB.QueryContext(r.Context(),
-		`SELECT id, name, description, status, created_at
-		   FROM projects
-		  WHERE organization_id = $1
-		  ORDER BY created_at DESC`, user.OrganizationID)
+	args := []any{user.OrganizationID}
+	where := "organization_id = $1"
+	if search := strings.TrimSpace(q.Get("search")); search != "" {
+		args = append(args, "%"+search+"%")
+		where += fmt.Sprintf(" AND name ILIKE $%d", len(args))
+	}
+
+	// sort defaults to name
+	sort := strings.ToLower(q.Get("sort"))
+	if sort == "" {
+		sort = "created_at"
+	}
+	dir := strings.ToLower(q.Get("dir"))
+	if dir == "" {
+		dir = "desc"
+	}
+	if dir != "asc" && dir != "desc" {
+		writeError(w, http.StatusBadRequest, "invalid dir")
+		return
+	}
+
+	query := "SELECT id, name, description, status, created_at FROM projects WHERE " + where +
+		" ORDER BY " + sort + " " + dir
+	rows, err := a.DB.QueryContext(r.Context(), query, args...)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
