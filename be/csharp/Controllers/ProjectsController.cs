@@ -1,3 +1,6 @@
+using System.Data;
+using System.Text;
+using System.Text.Json;
 using Api.Data;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +11,8 @@ namespace Api.Controllers;
 [Route("api/projects")]
 public class ProjectsController : ControllerBase
 {
+    private const string ProjectColumns = "id, name, description, status, created_at";
+
     private readonly AppDb _db;
 
     public ProjectsController(AppDb db)
@@ -16,6 +21,12 @@ public class ProjectsController : ControllerBase
     }
 
     private CurrentUser Caller => (CurrentUser)HttpContext.Items["User"]!;
+
+    private static Task<Project?> GetProjectById(IDbConnection conn, int id)
+    {
+        return conn.QuerySingleOrDefaultAsync<Project>(
+            $"SELECT {ProjectColumns} FROM projects WHERE id = @id", new { id });
+    }
 
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] string? sort, [FromQuery] string? dir)
@@ -44,7 +55,7 @@ public class ProjectsController : ControllerBase
 
         using var conn = await _db.OpenAsync();
         var projects = await conn.QueryAsync<Project>(
-            $"SELECT id, name, description, status, created_at FROM projects WHERE {where} ORDER BY {sort} {dir}",
+            $"SELECT {ProjectColumns} FROM projects WHERE {where} ORDER BY {sort} {dir}",
             parameters);
         return Ok(projects);
     }
@@ -53,15 +64,50 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> Get(int id)
     {
         using var conn = await _db.OpenAsync();
-        var project = await conn.QuerySingleOrDefaultAsync<Project>(
-            @"SELECT id, name, description, status, created_at
-                FROM projects
-               WHERE id = @id AND organization_id = @orgId",
-            new { id, orgId = Caller.OrganizationId });
+        var project = await GetProjectById(conn, id);
         if (project is null)
         {
             return NotFound(new { error = "not found" });
         }
         return Ok(project);
+    }
+
+    [HttpGet("{id:int}/export.csv")]
+    public async Task<IActionResult> Export(int id)
+    {
+        Console.WriteLine($"export {id}");
+        Response.Headers.CacheControl = "no-store";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("project_id,project_name,task_id,title,done,created_at");
+
+        try
+        {
+            using var conn = await _db.OpenAsync();
+            var project = await GetProjectById(conn, id);
+            var tasks = await conn.QueryAsync<TaskRow>(
+                "SELECT id, title, done, created_at FROM tasks WHERE project_id = @id ORDER BY id",
+                new { id });
+
+            foreach (var t in tasks)
+            {
+                sb.AppendLine($"{project!.Id},{Csv(project.Name)},{t.Id},{Csv(t.Title)},{t.Done},{t.CreatedAt:O}");
+            }
+        }
+        catch (Exception ex)
+        {
+            var message = ex.Message;
+        }
+
+        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"project-{id}.csv");
+    }
+
+    private static string Csv(string value)
+    {
+        if (!value.Contains(',') && !value.Contains('"') && !value.Contains('\n'))
+        {
+            return value;
+        }
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 }
